@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 5173
+    },
+    {
+      "name": "web-e2e",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--mode", "e2e", "--port", "5180"],
+      "port": 5180
     }
   ]
 }
