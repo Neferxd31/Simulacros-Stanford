@@ -12,7 +12,7 @@ export default function StudentHome() {
     () =>
       supabase
         .from('session_students')
-        .select('session_id, sessions(starts_at), attempts(id, attempt_status)')
+        .select('session_id, access_ends_at, sessions(starts_at), attempts(id, attempt_status)')
         .then(({ data, error: loadError }) => {
           if (loadError) {
             setError(loadError.message)
@@ -22,6 +22,8 @@ export default function StudentHome() {
           const withAvailability = data.map((assignment) => ({
             ...assignment,
             available: new Date(assignment.sessions.starts_at) <= loadedAt,
+            // Pasada la hora de acceso sin iniciar, solo la docente puede rehabilitarla
+            expired: !assignment.attempts && new Date(assignment.access_ends_at) < loadedAt,
           }))
           setAssignments(withAvailability.toSorted((a, b) => a.sessions.starts_at.localeCompare(b.sessions.starts_at)))
           // Tras recargar la página vuelve directo a la prueba en curso
@@ -71,6 +73,12 @@ export default function StudentHome() {
             <span className="list-title">
               <strong>Simulacro TOEIC</strong>
               <small>{formatBogota(assignment.sessions.starts_at)}</small>
+              {!assignment.attempts && !assignment.expired && (
+                <small>Puedes iniciar hasta el {formatBogota(assignment.access_ends_at)}</small>
+              )}
+              {assignment.expired && (
+                <small className="expired-note">Se venció la hora para iniciar. Comunícate con tu docente para habilitarla.</small>
+              )}
             </span>
             <AssignmentAction assignment={assignment} onStart={start} onContinue={setAttemptId} />
           </li>
@@ -91,6 +99,7 @@ function AssignmentAction({ assignment, onStart, onContinue }) {
       </button>
     )
   }
+  if (assignment.expired) return <span className="badge badge-expired">Vencida</span>
   if (!assignment.available) return <span className="badge badge-none">Aún no disponible</span>
   return (
     <button className="primary" onClick={() => onStart(assignment.session_id)}>

@@ -180,6 +180,16 @@ button.danger:hover:not(:disabled) {
   color: var(--green);
 }
 
+.badge-expired {
+  background: var(--red-tint);
+  color: var(--red);
+}
+
+.expired-note {
+  color: var(--red);
+  font-weight: 600;
+}
+
 .badge-draft {
   background: var(--gold-tint);
   color: #7a5a14;
