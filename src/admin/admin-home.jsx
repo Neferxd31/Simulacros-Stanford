@@ -6,6 +6,7 @@ export default function AdminHome() {
   const [tab, setTab] = useState('sessions')
   return (
     <>
+      <h1 className="page-title no-print">Panel docente</h1>
       <nav className="tabs no-print">
         <button aria-pressed={tab === 'sessions'} onClick={() => setTab('sessions')}>
           Sesiones

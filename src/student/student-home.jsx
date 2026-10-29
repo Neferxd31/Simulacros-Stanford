@@ -24,6 +24,9 @@ export default function StudentHome() {
             available: new Date(assignment.sessions.starts_at) <= loadedAt,
           }))
           setAssignments(withAvailability.toSorted((a, b) => a.sessions.starts_at.localeCompare(b.sessions.starts_at)))
+          // Tras recargar la página vuelve directo a la prueba en curso
+          const inProgress = data.find((assignment) => assignment.attempts && assignment.attempts.attempt_status !== 'submitted')
+          if (inProgress) setAttemptId((current) => current ?? inProgress.attempts.id)
         }),
     [],
   )
@@ -65,7 +68,10 @@ export default function StudentHome() {
       <ul className="list">
         {assignments.map((assignment) => (
           <li key={assignment.session_id}>
-            <span>Simulacro TOEIC · {formatBogota(assignment.sessions.starts_at)}</span>
+            <span className="list-title">
+              <strong>Simulacro TOEIC</strong>
+              <small>{formatBogota(assignment.sessions.starts_at)}</small>
+            </span>
             <AssignmentAction assignment={assignment} onStart={start} onContinue={setAttemptId} />
           </li>
         ))}
@@ -77,7 +83,7 @@ export default function StudentHome() {
 function AssignmentAction({ assignment, onStart, onContinue }) {
   // One-to-one (unique session_id, student_id): PostgREST returns an object or null
   const attempt = assignment.attempts
-  if (attempt?.attempt_status === 'submitted') return <span>Prueba enviada</span>
+  if (attempt?.attempt_status === 'submitted') return <span className="badge badge-submitted">Prueba enviada</span>
   if (attempt) {
     return (
       <button className="primary" onClick={() => onContinue(attempt.id)}>
@@ -85,7 +91,7 @@ function AssignmentAction({ assignment, onStart, onContinue }) {
       </button>
     )
   }
-  if (!assignment.available) return <span>Aún no disponible</span>
+  if (!assignment.available) return <span className="badge badge-none">Aún no disponible</span>
   return (
     <button className="primary" onClick={() => onStart(assignment.session_id)}>
       Iniciar

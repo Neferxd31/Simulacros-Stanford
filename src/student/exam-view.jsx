@@ -22,6 +22,25 @@ const loadAudio = async (audioPath) => {
   return URL.createObjectURL(blob)
 }
 
+const expectedAudioSecond = (current) =>
+  (Date.now() + current.clockOffset - new Date(current.current_part_started_at).getTime()) / 1000
+
+// Lleva el audio al segundo que dicta el servidor: no se puede pausar ni retroceder
+const resumeAudio = (audio, current) => {
+  const expected = expectedAudioSecond(current)
+  if (audio.readyState === 0 || audio.ended || expected >= audio.duration) return
+  audio.currentTime = expected
+  // Without a prior click the browser rejects play(); the next click or key press retries it
+  audio.play().catch(() => {})
+}
+
+// Retoma según la hora del servidor: tras una recarga no se reinicia el audio
+const playFromServerTime = async (audio, current) => {
+  audio.src = await loadAudio(current.audio_path)
+  await new Promise((resolve) => audio.addEventListener('loadedmetadata', resolve, { once: true }))
+  resumeAudio(audio, current)
+}
+
 const questionRange = (first, last) => Array.from({ length: last - first + 1 }, (_, index) => first + index)
 
 export default function ExamView({ attemptId, onExit }) {
@@ -101,26 +120,40 @@ export default function ExamView({ attemptId, onExit }) {
     if (status === 'submitted') caches.delete(AUDIO_CACHE)
   }, [status])
 
-  const expectedAudioSecond = (current) =>
-    (Date.now() + current.clockOffset - new Date(current.current_part_started_at).getTime()) / 1000
+  // Al entrar (o recargar) en Listening el audio arranca solo, en el segundo que corresponde
+  useEffect(() => {
+    if (state?.status !== 'listening') return
+    const part = state.parts.find((item) => item.part === state.current_part)
+    if (expectedAudioSecond(state) >= part.audio_duration_s) return
+    playFromServerTime(audioRef.current, state).catch((audioError) => setError(audioError.message))
+  }, [state])
 
-  // Retoma según la hora del servidor: tras una recarga no se reinicia el audio
-  const playFromServerTime = async (current) => {
-    const audio = audioRef.current
-    audio.src = await loadAudio(current.audio_path)
-    await new Promise((resolve) => audio.addEventListener('loadedmetadata', resolve, { once: true }))
-    audio.currentTime = expectedAudioSecond(current)
-    await audio.play()
-  }
+  // Si el navegador bloqueó el sonido tras recargar, cualquier clic o tecla lo retoma
+  useEffect(() => {
+    if (state?.status !== 'listening') return
+    const resume = () => {
+      if (audioRef.current.paused) resumeAudio(audioRef.current, state)
+    }
+    document.addEventListener('pointerdown', resume)
+    document.addEventListener('keydown', resume)
+    return () => {
+      document.removeEventListener('pointerdown', resume)
+      document.removeEventListener('keydown', resume)
+    }
+  }, [state])
+
+  // Durante la prueba, recargar o cerrar la pestaña pide confirmación
+  useEffect(() => {
+    if (status !== 'listening' && status !== 'reading') return
+    const warn = (event) => event.preventDefault()
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [status])
 
   // Sin pausa: si algo detiene el audio antes de tiempo, vuelve al segundo que corresponde
   const handlePause = () => {
     setAudioPlaying(false)
-    const audio = audioRef.current
-    const expected = expectedAudioSecond(state)
-    if (audio.ended || expected >= audio.duration) return
-    audio.currentTime = expected
-    audio.play()
+    resumeAudio(audioRef.current, state)
   }
 
   const run = async (action) => {
@@ -138,8 +171,7 @@ export default function ExamView({ attemptId, onExit }) {
     run(async () => {
       const { error: startError } = await supabase.rpc('start_next_part', { p_attempt_id: attemptId })
       if (startError) throw startError
-      const current = await loadState()
-      await playFromServerTime(current)
+      await loadState()
     })
 
   const submit = () => {
@@ -200,9 +232,7 @@ export default function ExamView({ attemptId, onExit }) {
           </strong>
         )}
         {partPlaying && !audioPlaying && (
-          <button className="primary" disabled={busy} onClick={() => run(() => playFromServerTime(state))}>
-            Reanudar audio
-          </button>
+          <span className="audio-hint">Cargando audio… si no se escucha, haz clic en cualquier parte de la página.</span>
         )}
         {canStartNext && (
           <button className="primary" disabled={busy} onClick={startNextPart}>

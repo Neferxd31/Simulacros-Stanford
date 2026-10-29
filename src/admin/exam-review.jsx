@@ -48,8 +48,9 @@ export default function ExamReview() {
       <ul className="list">
         {exams.map((item) => (
           <li key={item.id}>
-            <span>
-              {item.title} · {STATUS_LABELS[item.status]}
+            <span className="list-label">
+              {item.title}
+              <span className={`badge badge-${item.status}`}>{STATUS_LABELS[item.status]}</span>
             </span>
             <button onClick={() => setExamId(item.id)}>Revisar</button>
           </li>
@@ -95,8 +96,9 @@ function ExamDetail({ exam, onBack, onSetStatus }) {
   return (
     <section>
       <button onClick={onBack}>← Volver</button>
-      <h2>
-        {exam.title} · {STATUS_LABELS[exam.status]}
+      <h2 className="list-label">
+        {exam.title}
+        <span className={`badge badge-${exam.status}`}>{STATUS_LABELS[exam.status]}</span>
       </h2>
       <p>
         Revisa el orden, que nada quede recortado, la legibilidad, que no queden pistas (claves, audioscripts) y que el

@@ -77,89 +77,96 @@ export default function SessionsPanel() {
   if (sheet) return <AnswerSheet {...sheet} onBack={() => setSheet(null)} />
 
   return (
-    <section>
-      <h2>Nueva sesión</h2>
-      <form className="session-form" onSubmit={createSession}>
-        <label>
-          Simulacro
-          <select value={form.examId} onChange={(event) => setForm({ ...form, examId: event.target.value })} required>
-            <option value="">Elige un simulacro aprobado</option>
-            {exams.map((exam) => (
-              <option key={exam.id} value={exam.id}>
-                {exam.title}
-              </option>
+    <section className="sessions-layout">
+      <div>
+        <h2>Asignar simulacro</h2>
+        <form className="session-form card" onSubmit={createSession}>
+          <label>
+            Simulacro
+            <select value={form.examId} onChange={(event) => setForm({ ...form, examId: event.target.value })} required>
+              <option value="">Elige un simulacro aprobado</option>
+              {exams.map((exam) => (
+                <option key={exam.id} value={exam.id}>
+                  {exam.title}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Inicio (hora de Bogotá)
+            <input
+              type="datetime-local"
+              value={form.startsAt}
+              onChange={(event) => setForm({ ...form, startsAt: event.target.value })}
+              required
+            />
+          </label>
+          <fieldset>
+            <legend>Estudiantes</legend>
+            {students.length === 0 && <p>No hay estudiantes registradas.</p>}
+            {students.map((student) => (
+              <label key={student.id} className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={form.studentIds.includes(student.id)}
+                  onChange={() => toggleStudent(student.id)}
+                />
+                {studentLabel(student)}
+              </label>
             ))}
-          </select>
-        </label>
-        <label>
-          Inicio (hora de Bogotá)
-          <input
-            type="datetime-local"
-            value={form.startsAt}
-            onChange={(event) => setForm({ ...form, startsAt: event.target.value })}
-            required
-          />
-        </label>
-        <fieldset>
-          <legend>Estudiantes</legend>
-          {students.length === 0 && <p>No hay estudiantes registradas.</p>}
-          {students.map((student) => (
-            <label key={student.id} className="checkbox">
-              <input
-                type="checkbox"
-                checked={form.studentIds.includes(student.id)}
-                onChange={() => toggleStudent(student.id)}
-              />
-              {studentLabel(student)}
-            </label>
-          ))}
-        </fieldset>
-        <button type="submit" className="primary" disabled={form.studentIds.length === 0}>
-          Crear sesión
-        </button>
-      </form>
-      {error && <p role="alert">{error}</p>}
-
-      <div className="section-title">
-        <h2>Sesiones</h2>
-        <button onClick={load}>Actualizar</button>
+          </fieldset>
+          <button type="submit" className="primary" disabled={form.studentIds.length === 0}>
+            Asignar
+          </button>
+        </form>
+        {error && <p role="alert">{error}</p>}
       </div>
-      {sessions.length === 0 && <p>Todavía no hay sesiones.</p>}
-      {sessions.map((session) => (
-        <article key={session.id} className="session">
-          <h3>
-            {session.exams.title} · {formatBogota(session.starts_at)}
-          </h3>
-          <ul className="list">
-            {session.session_students.map((assignment) => {
-              // One-to-one (unique session_id, student_id): PostgREST returns an object or null
-              const attempt = assignment.attempts
-              return (
-                <li key={assignment.student_id}>
-                  <span>
-                    {studentLabel(assignment.profiles)} · {attempt ? STATUS_LABELS[attempt.attempt_status] : 'Sin iniciar'}
-                  </span>
-                  {attempt && (
-                    <button
-                      onClick={() =>
-                        setSheet({
-                          attemptId: attempt.id,
-                          studentName: studentLabel(assignment.profiles),
-                          examId: session.exams.id,
-                          examTitle: session.exams.title,
-                          startsAt: session.starts_at,
-                        })
-                      }
-                    >
-                      Hoja de respuestas
-                    </button>
-                  )}
-                </li>
-              )
-            })}
-          </ul>
-        </article>
-      ))}
+
+      <div>
+        <div className="section-title">
+          <h2>Sesiones</h2>
+          <button onClick={load}>Actualizar</button>
+        </div>
+        {sessions.length === 0 && <p>Todavía no hay sesiones.</p>}
+        {sessions.map((session) => (
+          <article key={session.id} className="session">
+            <h3>
+              {session.exams.title} · {formatBogota(session.starts_at)}
+            </h3>
+            <ul className="list">
+              {session.session_students.map((assignment) => {
+                // One-to-one (unique session_id, student_id): PostgREST returns an object or null
+                const attempt = assignment.attempts
+                return (
+                  <li key={assignment.student_id}>
+                    <span className="list-label">
+                      {studentLabel(assignment.profiles)}
+                      <span className={`badge badge-${attempt?.attempt_status ?? 'none'}`}>
+                        {attempt ? STATUS_LABELS[attempt.attempt_status] : 'Sin iniciar'}
+                      </span>
+                    </span>
+                    {attempt && (
+                      <button
+                        onClick={() =>
+                          setSheet({
+                            attemptId: attempt.id,
+                            studentName: studentLabel(assignment.profiles),
+                            examId: session.exams.id,
+                            examTitle: session.exams.title,
+                            startsAt: session.starts_at,
+                          })
+                        }
+                      >
+                        Hoja de respuestas
+                      </button>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          </article>
+        ))}
+      </div>
     </section>
   )
 }
