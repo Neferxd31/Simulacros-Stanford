@@ -495,14 +495,52 @@ form {
   color: var(--ink);
 }
 
+.session-form .checkbox span {
+  display: flex;
+  flex-direction: column;
+}
+
+.assigned-note {
+  color: var(--red);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .session {
   margin-bottom: 28px;
 }
 
+.session-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
 .session h3 {
-  margin: 0 0 10px;
+  margin: 0;
   padding-left: 10px;
   border-left: 3px solid var(--gold);
+}
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+button.link-danger {
+  padding: 6px 10px;
+  border-color: transparent;
+  background: none;
+  color: var(--red);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+button.link-danger:hover:not(:disabled) {
+  background: var(--red-tint);
 }
 
 @media (max-width: 900px) {

@@ -43,6 +43,20 @@ export default function SessionsPanel() {
     load()
   }, [load])
 
+  // Estudiantes que ya tienen asignado este simulacro en alguna sesión
+  const assignedTo = (examId) =>
+    new Set(
+      sessions
+        .filter((session) => session.exams.id === examId)
+        .flatMap((session) => session.session_students.map((assignment) => assignment.student_id)),
+    )
+  const alreadyAssigned = assignedTo(form.examId)
+
+  const selectExam = (examId) => {
+    const assigned = assignedTo(examId)
+    setForm({ ...form, examId, studentIds: form.studentIds.filter((id) => !assigned.has(id)) })
+  }
+
   const toggleStudent = (studentId) => {
     setForm((current) => ({
       ...current,
@@ -67,10 +81,42 @@ export default function SessionsPanel() {
     const rows = form.studentIds.map((studentId) => ({ session_id: data.id, student_id: studentId }))
     const { error: studentsError } = await supabase.from('session_students').insert(rows)
     if (studentsError) {
+      // No dejar una sesión vacía si la base rechaza una asignación repetida
+      await supabase.from('sessions').delete().eq('id', data.id)
       setError(studentsError.message)
       return
     }
     setForm(EMPTY_FORM)
+    load()
+  }
+
+  // Borrar la asignación borra en cascada el intento y las respuestas
+  const removeStudent = async (session, assignment) => {
+    const warning = assignment.attempts ? ' Se borrarán su intento y sus respuestas.' : ''
+    if (!window.confirm(`¿Quitar a ${studentLabel(assignment.profiles)} de esta sesión?${warning}`)) return
+    setError('')
+    const { error: deleteError } = await supabase
+      .from('session_students')
+      .delete()
+      .eq('session_id', session.id)
+      .eq('student_id', assignment.student_id)
+    if (deleteError) {
+      setError(deleteError.message)
+      return
+    }
+    load()
+  }
+
+  const deleteSession = async (session) => {
+    const started = session.session_students.some((assignment) => assignment.attempts)
+    const warning = started ? ' Se borrarán los intentos y respuestas de sus estudiantes.' : ''
+    if (!window.confirm(`¿Eliminar la sesión del ${formatBogota(session.starts_at)}?${warning}`)) return
+    setError('')
+    const { error: deleteError } = await supabase.from('sessions').delete().eq('id', session.id)
+    if (deleteError) {
+      setError(deleteError.message)
+      return
+    }
     load()
   }
 
@@ -83,7 +129,7 @@ export default function SessionsPanel() {
         <form className="session-form card" onSubmit={createSession}>
           <label>
             Simulacro
-            <select value={form.examId} onChange={(event) => setForm({ ...form, examId: event.target.value })} required>
+            <select value={form.examId} onChange={(event) => selectExam(event.target.value)} required>
               <option value="">Elige un simulacro aprobado</option>
               {exams.map((exam) => (
                 <option key={exam.id} value={exam.id}>
@@ -109,9 +155,13 @@ export default function SessionsPanel() {
                 <input
                   type="checkbox"
                   checked={form.studentIds.includes(student.id)}
+                  disabled={alreadyAssigned.has(student.id)}
                   onChange={() => toggleStudent(student.id)}
                 />
-                {studentLabel(student)}
+                <span>
+                  {studentLabel(student)}
+                  {alreadyAssigned.has(student.id) && <small className="assigned-note">Ya tiene este simulacro asignado</small>}
+                </span>
               </label>
             ))}
           </fieldset>
@@ -130,9 +180,15 @@ export default function SessionsPanel() {
         {sessions.length === 0 && <p>Todavía no hay sesiones.</p>}
         {sessions.map((session) => (
           <article key={session.id} className="session">
-            <h3>
-              {session.exams.title} · {formatBogota(session.starts_at)}
-            </h3>
+            <div className="session-header">
+              <h3>
+                {session.exams.title} · {formatBogota(session.starts_at)}
+              </h3>
+              <button className="link-danger" onClick={() => deleteSession(session)}>
+                Eliminar sesión
+              </button>
+            </div>
+            {session.session_students.length === 0 && <p>Sin estudiantes asignadas.</p>}
             <ul className="list">
               {session.session_students.map((assignment) => {
                 // One-to-one (unique session_id, student_id): PostgREST returns an object or null
@@ -145,21 +201,26 @@ export default function SessionsPanel() {
                         {attempt ? STATUS_LABELS[attempt.attempt_status] : 'Sin iniciar'}
                       </span>
                     </span>
-                    {attempt && (
-                      <button
-                        onClick={() =>
-                          setSheet({
-                            attemptId: attempt.id,
-                            studentName: studentLabel(assignment.profiles),
-                            examId: session.exams.id,
-                            examTitle: session.exams.title,
-                            startsAt: session.starts_at,
-                          })
-                        }
-                      >
-                        Hoja de respuestas
+                    <span className="row-actions">
+                      {attempt && (
+                        <button
+                          onClick={() =>
+                            setSheet({
+                              attemptId: attempt.id,
+                              studentName: studentLabel(assignment.profiles),
+                              examId: session.exams.id,
+                              examTitle: session.exams.title,
+                              startsAt: session.starts_at,
+                            })
+                          }
+                        >
+                          Hoja de respuestas
+                        </button>
+                      )}
+                      <button className="link-danger" onClick={() => removeStudent(session, assignment)}>
+                        Quitar
                       </button>
-                    )}
+                    </span>
                   </li>
                 )
               })}

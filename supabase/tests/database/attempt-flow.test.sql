@@ -9,7 +9,7 @@ insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-000000000002', 'student2@test.co');
 update public.profiles set role = 'admin' where id = '00000000-0000-0000-0000-00000000000a';
 
-insert into public.exams (id, title, status) values ('e1', 'Exam', 'approved');
+insert into public.exams (id, title, status) values ('e1', 'Exam', 'approved'), ('e2', 'Future exam', 'approved');
 insert into public.exam_parts (exam_id, part, section, first_q, last_q, choices_count, audio_path, audio_duration_s) values
   ('e1', 1, 'listening', 1, 10, 4, 'e1/audio/part-1.mp3', 300),
   ('e1', 2, 'listening', 11, 40, 3, 'e1/audio/part-2.mp3', 200),
@@ -27,7 +27,7 @@ insert into storage.objects (bucket_id, name) values
 
 insert into public.sessions (id, exam_id, starts_at, created_by) values
   ('10000000-0000-0000-0000-000000000001', 'e1', now() - interval '1 minute', '00000000-0000-0000-0000-00000000000a'),
-  ('10000000-0000-0000-0000-000000000002', 'e1', now() + interval '1 day', '00000000-0000-0000-0000-00000000000a');
+  ('10000000-0000-0000-0000-000000000002', 'e2', now() + interval '1 day', '00000000-0000-0000-0000-00000000000a');
 insert into public.session_students (session_id, student_id) values
   ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001'),
   ('10000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001');
