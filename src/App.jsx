@@ -12,6 +12,8 @@ function App() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [accountOpen, setAccountOpen] = useState(false)
+  // Changing the key remounts the home view, which resets it to its first screen
+  const [homeKey, setHomeKey] = useState(0)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -71,13 +73,13 @@ function App() {
     <div className="app">
       <header className="app-header no-print">
         <div className="app-header-inner">
-          <div className="brand">
+          <button className="brand" title="Ir al inicio" onClick={() => setHomeKey((key) => key + 1)}>
             <img className="logo" src="/logo.webp" alt="" width="48" height="48" />
             <div>
               <strong>Stanford English Academy</strong>
               <span>Simulacros TOEIC</span>
             </div>
-          </div>
+          </button>
           <div className="user">
             <div className="user-info">
               <span>{session.user.email}</span>
@@ -89,8 +91,8 @@ function App() {
         </div>
       </header>
       <main className="content">
-        {role === 'admin' && <AdminHome />}
-        {role === 'student' && <StudentHome />}
+        {role === 'admin' && <AdminHome key={homeKey} />}
+        {role === 'student' && <StudentHome key={homeKey} />}
         {!role && <p>Cargando…</p>}
       </main>
       <footer className="app-footer no-print">Stanford English Academy · Simulacros TOEIC</footer>

@@ -302,6 +302,17 @@ form {
   display: flex;
   align-items: center;
   gap: 12px;
+  text-align: left;
+}
+
+.app-header .brand {
+  padding: 0;
+  border: none;
+}
+
+.app-header .brand:hover:not(:disabled) {
+  background: none;
+  opacity: 0.85;
 }
 
 .brand div {
@@ -583,6 +594,32 @@ button.link-danger:hover:not(:disabled) {
   background: white;
   color: var(--navy);
   border-color: white;
+}
+
+/* Teacher preview of the student view */
+.preview-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding: 10px 16px;
+  background: var(--gold-tint);
+  border: 1px solid var(--gold-light);
+  border-radius: var(--radius);
+  color: #5c4410;
+}
+
+.preview-parts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.preview-audio {
+  height: 36px;
 }
 
 .audio-hint {

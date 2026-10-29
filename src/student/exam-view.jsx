@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase-client.js'
 import { formatSeconds } from '../lib/format-date.js'
+import BubbleSheet from './bubble-sheet.jsx'
 
-const OPTIONS = ['A', 'B', 'C', 'D']
 const AUDIO_CACHE = 'exam-audio'
 
 // Cached by the stable storage path, not by the signed URL (it changes on every request),
@@ -40,8 +40,6 @@ const playFromServerTime = async (audio, current) => {
   await new Promise((resolve) => audio.addEventListener('loadedmetadata', resolve, { once: true }))
   resumeAudio(audio, current)
 }
-
-const questionRange = (first, last) => Array.from({ length: last - first + 1 }, (_, index) => first + index)
 
 export default function ExamView({ attemptId, onExit }) {
   const [state, setState] = useState(null)
@@ -210,7 +208,6 @@ export default function ExamView({ attemptId, onExit }) {
 
   const page = state.pages[pageIndex]
   const pagePart = state.parts.find((part) => part.part === page?.part)
-  const questions = page?.first_q ? questionRange(page.first_q, page.last_q) : []
   const canStartNext = nextPart && (status === 'pending' || (status === 'listening' && !partPlaying))
 
   return (
@@ -262,38 +259,9 @@ export default function ExamView({ attemptId, onExit }) {
               <img className="page-image" src={pageUrls[page.image_path]} alt={`Página ${pageIndex + 1}`} />
             )}
           </div>
-          <BubbleSheet questions={questions} choices={pagePart.choices_count} answers={answers} onSelect={selectOption} />
+          <BubbleSheet first={page.first_q} last={page.last_q} choices={pagePart.choices_count} answers={answers} onSelect={selectOption} />
         </div>
       )}
     </section>
-  )
-}
-
-function BubbleSheet({ questions, choices, answers, onSelect }) {
-  if (questions.length === 0) {
-    return (
-      <aside className="bubbles">
-        <p>Esta página no tiene preguntas.</p>
-      </aside>
-    )
-  }
-  return (
-    <aside className="bubbles">
-      {questions.map((question) => (
-        <div key={question} className="bubble-row">
-          <span>{question}.</span>
-          {OPTIONS.slice(0, choices).map((option) => (
-            <button
-              key={option}
-              className="bubble"
-              aria-pressed={answers[question] === option}
-              onClick={() => onSelect(question, option)}
-            >
-              {option}
-            </button>
-          ))}
-        </div>
-      ))}
-    </aside>
   )
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase-client.js'
 import { formatSeconds } from '../lib/format-date.js'
+import ExamPreview from './exam-preview.jsx'
 
 const STATUS_LABELS = { draft: 'Borrador', approved: 'Aprobado', archived: 'Archivado' }
 
@@ -13,7 +14,7 @@ export default function ExamReview() {
     () =>
       supabase
         .from('exams')
-        .select('id, title, status')
+        .select('id, title, status, reading_minutes')
         .order('id')
         .then(({ data, error: loadError }) => {
           if (loadError) {
@@ -64,6 +65,7 @@ function ExamDetail({ exam, onBack, onSetStatus }) {
   const [pages, setPages] = useState([])
   const [parts, setParts] = useState([])
   const [urls, setUrls] = useState({})
+  const [previewing, setPreviewing] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -93,6 +95,10 @@ function ExamDetail({ exam, onBack, onSetStatus }) {
     load()
   }, [exam.id])
 
+  if (previewing) {
+    return <ExamPreview exam={exam} parts={parts} pages={pages} urls={urls} onExit={() => setPreviewing(false)} />
+  }
+
   return (
     <section>
       <button onClick={onBack}>← Volver</button>
@@ -105,6 +111,9 @@ function ExamDetail({ exam, onBack, onSetStatus }) {
         rango de preguntas de cada página coincida.
       </p>
       <div className="actions">
+        <button className="primary" disabled={pages.length === 0} onClick={() => setPreviewing(true)}>
+          Ver como estudiante
+        </button>
         {exam.status !== 'approved' && (
           <button className="primary" onClick={() => onSetStatus(exam.id, 'approved')}>
             Aprobar
