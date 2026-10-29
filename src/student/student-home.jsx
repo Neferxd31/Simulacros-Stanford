@@ -78,7 +78,17 @@ function AssignmentAction({ assignment, onStart, onContinue }) {
   // One-to-one (unique session_id, student_id): PostgREST returns an object or null
   const attempt = assignment.attempts
   if (attempt?.attempt_status === 'submitted') return <span>Prueba enviada</span>
-  if (attempt) return <button onClick={() => onContinue(attempt.id)}>Continuar</button>
+  if (attempt) {
+    return (
+      <button className="primary" onClick={() => onContinue(attempt.id)}>
+        Continuar
+      </button>
+    )
+  }
   if (!assignment.available) return <span>Aún no disponible</span>
-  return <button onClick={() => onStart(assignment.session_id)}>Iniciar</button>
+  return (
+    <button className="primary" onClick={() => onStart(assignment.session_id)}>
+      Iniciar
+    </button>
+  )
 }

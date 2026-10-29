@@ -188,23 +188,29 @@ export default function ExamView({ attemptId, onExit }) {
         {status === 'pending' && <strong>Listening</strong>}
         {status === 'listening' && (
           <strong>
-            Listening · Parte {state.current_part}
-            {partPlaying ? ` · audio ${formatSeconds((partEndsAt - serverNow) / 1000)}` : ' · audio terminado'}
+            Listening · Parte {state.current_part} ·{' '}
+            <span className="timer">
+              {partPlaying ? `audio ${formatSeconds((partEndsAt - serverNow) / 1000)}` : 'audio terminado'}
+            </span>
           </strong>
         )}
-        {status === 'reading' && <strong>Reading · quedan {formatSeconds((readingEndsAt - serverNow) / 1000)}</strong>}
+        {status === 'reading' && (
+          <strong>
+            Reading · <span className="timer">quedan {formatSeconds((readingEndsAt - serverNow) / 1000)}</span>
+          </strong>
+        )}
         {partPlaying && !audioPlaying && (
-          <button disabled={busy} onClick={() => run(() => playFromServerTime(state))}>
+          <button className="primary" disabled={busy} onClick={() => run(() => playFromServerTime(state))}>
             Reanudar audio
           </button>
         )}
         {canStartNext && (
-          <button disabled={busy} onClick={startNextPart}>
+          <button className="primary" disabled={busy} onClick={startNextPart}>
             Comenzar parte {nextPart.part}
           </button>
         )}
         {status === 'reading' && (
-          <button disabled={busy} onClick={submit}>
+          <button className="danger" disabled={busy} onClick={submit}>
             Enviar prueba
           </button>
         )}

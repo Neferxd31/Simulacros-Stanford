@@ -114,7 +114,7 @@ export default function SessionsPanel() {
             </label>
           ))}
         </fieldset>
-        <button type="submit" disabled={form.studentIds.length === 0}>
+        <button type="submit" className="primary" disabled={form.studentIds.length === 0}>
           Crear sesión
         </button>
       </form>

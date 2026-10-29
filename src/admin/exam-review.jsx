@@ -103,7 +103,11 @@ function ExamDetail({ exam, onBack, onSetStatus }) {
         rango de preguntas de cada página coincida.
       </p>
       <div className="actions">
-        {exam.status !== 'approved' && <button onClick={() => onSetStatus(exam.id, 'approved')}>Aprobar</button>}
+        {exam.status !== 'approved' && (
+          <button className="primary" onClick={() => onSetStatus(exam.id, 'approved')}>
+            Aprobar
+          </button>
+        )}
         {exam.status !== 'archived' && <button onClick={() => onSetStatus(exam.id, 'archived')}>Archivar</button>}
         {exam.status !== 'draft' && <button onClick={() => onSetStatus(exam.id, 'draft')}>Volver a borrador</button>}
       </div>

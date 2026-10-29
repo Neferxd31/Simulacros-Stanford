@@ -39,10 +39,18 @@ export default function AnswerSheet({ attemptId, studentName, examId, examTitle,
     <section className="answer-sheet">
       <div className="actions no-print">
         <button onClick={onBack}>← Volver</button>
-        <button onClick={() => window.print()}>Imprimir</button>
+        <button className="primary" onClick={() => window.print()}>
+          Imprimir
+        </button>
       </div>
       {error && <p role="alert">{error}</p>}
-      <h2>Hoja de respuestas</h2>
+      <div className="sheet-header">
+        <img className="logo" src="/logo.webp" alt="" width="64" height="64" />
+        <div>
+          <h2>Hoja de respuestas</h2>
+          <span>Stanford English Academy · Simulacros TOEIC</span>
+        </div>
+      </div>
       <p>
         <strong>Estudiante:</strong> {studentName}
         <br />

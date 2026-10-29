@@ -34,13 +34,19 @@ function App() {
   if (!session) {
     return (
       <main className="login">
-        <h1>Simulacros TOEIC</h1>
-        <form onSubmit={handleSubmit}>
-          <input type="email" placeholder="Correo" value={email} onChange={(event) => setEmail(event.target.value)} required />
-          <input type="password" placeholder="Contraseña" value={password} onChange={(event) => setPassword(event.target.value)} required />
-          <button type="submit">Iniciar sesión</button>
-        </form>
-        {error && <p role="alert">{error}</p>}
+        <div className="login-card">
+          <img className="logo" src="/logo.webp" alt="Stanford English Academy" width="120" height="120" />
+          <h1>Simulacros TOEIC</h1>
+          <p>Stanford English Academy</p>
+          <form onSubmit={handleSubmit}>
+            <input type="email" placeholder="Correo" value={email} onChange={(event) => setEmail(event.target.value)} required />
+            <input type="password" placeholder="Contraseña" value={password} onChange={(event) => setPassword(event.target.value)} required />
+            <button type="submit" className="primary">
+              Iniciar sesión
+            </button>
+          </form>
+          {error && <p role="alert">{error}</p>}
+        </div>
       </main>
     )
   }
@@ -48,9 +54,18 @@ function App() {
   return (
     <main>
       <header className="app-header no-print">
-        <strong>Simulacros TOEIC</strong>
-        <span>{session.user.email}</span>
-        <button onClick={() => supabase.auth.signOut()}>Cerrar sesión</button>
+        <div className="brand">
+          <img className="logo" src="/logo.webp" alt="" width="44" height="44" />
+          <div>
+            <strong>Stanford English Academy</strong>
+            <br />
+            <span>Simulacros TOEIC</span>
+          </div>
+        </div>
+        <div className="user">
+          <span>{session.user.email}</span>
+          <button onClick={() => supabase.auth.signOut()}>Cerrar sesión</button>
+        </div>
       </header>
       {role === 'admin' && <AdminHome />}
       {role === 'student' && <StudentHome />}
