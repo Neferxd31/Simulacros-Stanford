@@ -22,7 +22,7 @@ export default function SessionsPanel() {
         supabase
           .from('sessions')
           .select(
-            'id, starts_at, exams(id, title), session_students(student_id, access_ends_at, profiles(full_name, email), attempts(id, attempt_status))',
+            'id, starts_at, exams(id, title), session_students(student_id, available_at, profiles(full_name, email), attempts(id, attempt_status))',
           )
           .order('starts_at', { ascending: false }),
         supabase.from('exams').select('id, title').eq('status', 'approved').order('id'),
@@ -35,15 +35,15 @@ export default function SessionsPanel() {
         }
         const [sessionsResult, examsResult, studentsResult] = results
         const loadedAt = new Date()
-        // Vencida: pasó la hora de acceso sin que la estudiante iniciara
-        const withExpiry = sessionsResult.data.map((session) => ({
+        // Aún no llega su hora: la docente puede habilitarla antes
+        const withSchedule = sessionsResult.data.map((session) => ({
           ...session,
           session_students: session.session_students.map((assignment) => ({
             ...assignment,
-            expired: !assignment.attempts && new Date(assignment.access_ends_at) < loadedAt,
+            scheduled: !assignment.attempts && new Date(assignment.available_at) > loadedAt,
           })),
         }))
-        setSessions(withExpiry)
+        setSessions(withSchedule)
         setExams(examsResult.data)
         setStudents(studentsResult.data)
       }),
@@ -118,15 +118,15 @@ export default function SessionsPanel() {
     load()
   }
 
-  // Da a la estudiante una hora nueva para iniciar, contada desde ahora
-  const reopenAccess = async (session, assignment) => {
+  // Permite a la estudiante iniciar ya, sin esperar la hora de la sesión
+  const enableAccess = async (session, assignment) => {
     setError('')
-    const { error: reopenError } = await supabase.rpc('reopen_access', {
+    const { error: enableError } = await supabase.rpc('enable_access', {
       p_session_id: session.id,
       p_student_id: assignment.student_id,
     })
-    if (reopenError) {
-      setError(reopenError.message)
+    if (enableError) {
+      setError(enableError.message)
       return
     }
     load()
@@ -222,18 +222,14 @@ export default function SessionsPanel() {
                   <li key={assignment.student_id}>
                     <span className="list-label">
                       {studentLabel(assignment.profiles)}
-                      {assignment.expired ? (
-                        <span className="badge badge-expired">Vencida</span>
-                      ) : (
-                        <span className={`badge badge-${attempt?.attempt_status ?? 'none'}`}>
-                          {attempt ? STATUS_LABELS[attempt.attempt_status] : 'Sin iniciar'}
-                        </span>
-                      )}
+                      <span className={`badge badge-${attempt?.attempt_status ?? 'none'}`}>
+                        {attempt ? STATUS_LABELS[attempt.attempt_status] : 'Sin iniciar'}
+                      </span>
                     </span>
                     <span className="row-actions">
-                      {assignment.expired && (
-                        <button className="primary" onClick={() => reopenAccess(session, assignment)}>
-                          Rehabilitar
+                      {assignment.scheduled && (
+                        <button className="primary" onClick={() => enableAccess(session, assignment)}>
+                          Habilitar
                         </button>
                       )}
                       {attempt && (
