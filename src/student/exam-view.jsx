@@ -4,6 +4,11 @@ import { formatSeconds } from '../lib/format-date.js'
 import BubbleSheet from './bubble-sheet.jsx'
 
 const AUDIO_CACHE = 'exam-audio'
+// Las páginas se ven a lo largo de toda la prueba (Listening + 75 min de Reading), así que
+// el enlace firmado dura más que el examen completo
+const PAGE_URL_SECONDS = 4 * 60 * 60
+const PAGE_RETRIES = 2
+const PAGE_ERROR = 'No se pudo cargar una página. Revisa tu conexión y recarga la página; si sigue igual, avisa a tu docente.'
 
 // Cached by the stable storage path, not by the signed URL (it changes on every request),
 // so a reload does not download the audio again
@@ -51,6 +56,7 @@ export default function ExamView({ attemptId, onExit }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const audioRef = useRef(null)
+  const pageRetries = useRef({})
 
   const loadState = useCallback(
     () =>
@@ -79,17 +85,39 @@ export default function ExamView({ attemptId, onExit }) {
     return () => clearInterval(timer)
   }, [])
 
+  const signPages = useCallback(
+    (paths) =>
+      supabase.storage
+        .from('exams')
+        .createSignedUrls(paths, PAGE_URL_SECONDS)
+        .then(({ data, error: signError }) => {
+          if (signError) {
+            setError(signError.message)
+            return
+          }
+          // Each file can fail on its own (it comes back without signedUrl): never leave a silent blank page
+          const signed = data.filter((item) => item.signedUrl)
+          setPageUrls((current) => ({ ...current, ...Object.fromEntries(signed.map((item) => [item.path, item.signedUrl])) }))
+          if (signed.length < data.length) setError(PAGE_ERROR)
+        }),
+    [],
+  )
+
   useEffect(() => {
     if (!state?.pages?.length) return
-    const paths = state.pages.map((page) => page.image_path)
-    supabase.storage.from('exams').createSignedUrls(paths, 600).then(({ data, error: signError }) => {
-      if (signError) {
-        setError(signError.message)
-        return
-      }
-      setPageUrls(Object.fromEntries(data.map((item) => [item.path, item.signedUrl])))
-    })
-  }, [state])
+    signPages(state.pages.map((page) => page.image_path))
+  }, [state, signPages])
+
+  // Si una imagen no carga, pide un enlace nuevo y la vuelve a intentar antes de avisar
+  const retryPage = (path) => {
+    const retries = pageRetries.current[path] ?? 0
+    if (retries >= PAGE_RETRIES) {
+      setError(PAGE_ERROR)
+      return
+    }
+    pageRetries.current[path] = retries + 1
+    signPages([path])
+  }
 
   const serverNow = now + (state?.clockOffset ?? 0)
   const status = state?.status
@@ -256,7 +284,12 @@ export default function ExamView({ attemptId, onExit }) {
               ))}
             </nav>
             {pageUrls[page.image_path] && (
-              <img className="page-image" src={pageUrls[page.image_path]} alt={`Página ${pageIndex + 1}`} />
+              <img
+                className="page-image"
+                src={pageUrls[page.image_path]}
+                alt={`Página ${pageIndex + 1}`}
+                onError={() => retryPage(page.image_path)}
+              />
             )}
           </div>
           <BubbleSheet first={page.first_q} last={page.last_q} choices={pagePart.choices_count} answers={answers} onSelect={selectOption} />
