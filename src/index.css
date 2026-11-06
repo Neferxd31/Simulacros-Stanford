@@ -813,37 +813,134 @@ button.link-danger:hover:not(:disabled) {
   box-shadow: var(--shadow);
 }
 
-/* Answer sheet: columns of 25 like a paper answer sheet */
+/* Answer sheet: same layout as the book's printed TOEIC answer sheet */
 .answer-sheet {
+  --sheet-ink: #5b6573;
+  --sheet-line: #b9bec6;
+  --sheet-band: #e9ebee;
   margin-top: 16px;
 }
 
-.sheet-header {
+.sheet-page {
+  max-width: 820px;
+  margin: 0 auto 32px;
+  overflow: hidden;
+  background: white;
+  border: 1.5px solid var(--sheet-line);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  font-family: 'Montserrat', var(--sans);
+  color: var(--sheet-ink);
+}
+
+.sheet-band {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
+  justify-content: space-between;
   gap: 16px;
-  padding-bottom: 12px;
-  border-bottom: 3px solid var(--red);
+  padding: 14px 24px 10px;
+  background: var(--sheet-band);
+  border-bottom: 1.5px solid var(--sheet-line);
 }
 
-.sheet-header h2 {
-  margin: 0;
+.sheet-student {
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
 }
 
-.sheet-header span {
-  color: var(--muted);
+.sheet-title {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.15;
 }
 
-.sheet-grid {
+.sheet-title strong {
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.sheet-title span {
+  font-size: 27px;
+  font-weight: 500;
+}
+
+.sheet-body {
+  padding: 18px 28px 22px;
+}
+
+.sheet-body h3 {
+  margin: 0 0 6px;
+  font-family: 'Montserrat', var(--sans);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--sheet-ink);
+}
+
+.sheet-part h4 {
+  margin: 12px 0 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--sheet-ink);
+}
+
+/* Questions fill each column top to bottom, four columns per part */
+.sheet-columns {
   display: grid;
   grid-auto-flow: column;
-  grid-template-rows: repeat(25, auto);
-  gap: 2px 28px;
-  justify-content: start;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3px 12px;
+  padding-left: 14px;
+}
+
+.sheet-item {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+}
+
+.sheet-number {
+  min-width: 28px;
+  margin-right: 3px;
+  text-align: right;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
+.sheet-bubble {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border: 1px solid #6b7280;
+  border-radius: 50%;
+  font-size: 8.5px;
+  font-weight: 600;
+}
+
+.sheet-bubble.marked {
+  background: #1f2937;
+  border-color: #1f2937;
+  color: white;
+}
+
+.sheet-foot {
+  height: 26px;
+  background: var(--sheet-band);
+  border-top: 1.5px solid var(--sheet-line);
+}
+
 @media print {
+  @page {
+    size: letter;
+    margin: 10mm;
+  }
+
   .no-print {
     display: none !important;
   }
@@ -854,5 +951,23 @@ button.link-danger:hover:not(:disabled) {
 
   .content {
     padding: 0;
+  }
+
+  .answer-sheet {
+    margin: 0;
+  }
+
+  /* One section per printed page, with the grey bands and marked bubbles kept */
+  .sheet-page {
+    max-width: none;
+    margin: 0;
+    box-shadow: none;
+    break-after: page;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .sheet-page:last-child {
+    break-after: auto;
   }
 }
