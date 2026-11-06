@@ -5,6 +5,19 @@ import AdminHome from './admin/admin-home.jsx'
 import StudentHome from './student/student-home.jsx'
 
 const ROLE_LABELS = { admin: 'Docente', student: 'Estudiante' }
+const IDLE_MS = 30 * 60 * 1000
+// Stored (not kept in memory) so it is shared by every tab and survives closing the browser
+const LAST_ACTIVITY_KEY = 'simulacros-last-activity'
+
+const TAB_OPEN_KEY = 'simulacros-tab-open'
+
+const markActivity = () => localStorage.setItem(LAST_ACTIVITY_KEY, String(Date.now()))
+const idleTooLong = () => Date.now() - Number(localStorage.getItem(LAST_ACTIVITY_KEY) ?? Date.now()) >= IDLE_MS
+
+// Recargar la pestaña (p. ej. a mitad del examen) cuenta como actividad; abrir el navegador
+// horas después no. sessionStorage survives a reload but not closing the tab
+if (sessionStorage.getItem(TAB_OPEN_KEY)) markActivity()
+sessionStorage.setItem(TAB_OPEN_KEY, '1')
 
 function App() {
   const [session, setSession] = useState(null)
@@ -14,6 +27,7 @@ function App() {
   const [accountOpen, setAccountOpen] = useState(false)
   // Changing the key remounts the home view, which resets it to its first screen
   const [homeKey, setHomeKey] = useState(0)
+  const [examActive, setExamActive] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -30,9 +44,34 @@ function App() {
   // Ignore a profile left over from a previous user until the new one loads
   const role = profile && profile.id === userId ? profile.role : null
 
+  const signedIn = Boolean(session)
+  useEffect(() => {
+    if (!signedIn) return
+    window.addEventListener('pointerdown', markActivity)
+    window.addEventListener('keydown', markActivity)
+    return () => {
+      window.removeEventListener('pointerdown', markActivity)
+      window.removeEventListener('keydown', markActivity)
+    }
+  }, [signedIn])
+
+  // Cierra la sesión tras 30 minutos sin actividad, también si el computador quedó con la
+  // pestaña cerrada. Nunca durante un examen en curso, para no sacar a la estudiante a mitad
+  useEffect(() => {
+    if (!signedIn || examActive) return
+    const checkIdle = () => {
+      if (!idleTooLong()) return
+      supabase.auth.signOut().then(() => setError('Tu sesión se cerró por inactividad. Vuelve a ingresar.'))
+    }
+    checkIdle()
+    const timer = setInterval(checkIdle, 60 * 1000)
+    return () => clearInterval(timer)
+  }, [signedIn, examActive])
+
   const handleSubmit = async (event) => {
     event.preventDefault()
     setError('')
+    markActivity()
     const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
     if (signInError) setError(signInError.message)
   }
@@ -92,7 +131,7 @@ function App() {
       </header>
       <main className="content">
         {role === 'admin' && <AdminHome key={homeKey} />}
-        {role === 'student' && <StudentHome key={homeKey} />}
+        {role === 'student' && <StudentHome key={homeKey} onExamActiveChange={setExamActive} />}
         {!role && <p>Cargando…</p>}
       </main>
       <footer className="app-footer no-print">Stanford English Academy · Simulacros TOEIC</footer>

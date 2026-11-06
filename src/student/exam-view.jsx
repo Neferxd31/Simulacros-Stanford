@@ -46,7 +46,7 @@ const playFromServerTime = async (audio, current) => {
   resumeAudio(audio, current)
 }
 
-export default function ExamView({ attemptId, onExit }) {
+export default function ExamView({ attemptId, onActiveChange, onExit }) {
   const [state, setState] = useState(null)
   const [now, setNow] = useState(() => Date.now())
   const [answers, setAnswers] = useState({})
@@ -140,6 +140,12 @@ export default function ExamView({ attemptId, onExit }) {
   useEffect(() => {
     if (status === 'submitted') caches.delete(AUDIO_CACHE)
   }, [status])
+
+  // Mientras la prueba está en curso la sesión no se cierra por inactividad
+  useEffect(() => {
+    onActiveChange(Boolean(status) && status !== 'submitted')
+    return () => onActiveChange(false)
+  }, [status, onActiveChange])
 
   // Al entrar (o recargar) en Listening el audio arranca solo, en el segundo que corresponde
   useEffect(() => {

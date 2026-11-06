@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase-client.js'
 import { formatBogota } from '../lib/format-date.js'
 import ExamView from './exam-view.jsx'
 
-export default function StudentHome() {
+export default function StudentHome({ onExamActiveChange }) {
   const [assignments, setAssignments] = useState([])
   const [attemptId, setAttemptId] = useState(null)
   const [error, setError] = useState('')
@@ -53,6 +53,7 @@ export default function StudentHome() {
     return (
       <ExamView
         attemptId={attemptId}
+        onActiveChange={onExamActiveChange}
         onExit={() => {
           setAttemptId(null)
           load()
