@@ -127,20 +127,15 @@ export default function ExamView({ attemptId, onExit }) {
     : 0
   const partPlaying = status === 'listening' && serverNow < partEndsAt
   const nextPart = state?.parts?.find((part) => part.section === 'listening' && part.part > (state.current_part ?? 0))
-  const readingDue = status === 'listening' && Boolean(state.reading_started_at) && serverNow >= new Date(state.reading_started_at).getTime()
+  const listeningOver = status === 'listening' && !nextPart && serverNow >= partEndsAt
   const readingEndsAt = state?.reading_ends_at ? new Date(state.reading_ends_at).getTime() : 0
   const readingExpired = status === 'reading' && serverNow >= readingEndsAt
 
-  // Al terminar el último audio el servidor ya cuenta Reading
+  // Al terminar el último audio o el tiempo de Reading el servidor ya cerró la sección:
+  // vuelve a la selección (o queda enviada si era la segunda)
   useEffect(() => {
-    if (readingDue) loadState()
-  }, [readingDue, loadState])
-
-  // Al vencer el tiempo se envía lo marcado (el servidor ya lo considera enviado de todos modos)
-  useEffect(() => {
-    if (!readingExpired) return
-    supabase.rpc('submit_attempt', { p_attempt_id: attemptId }).then(loadState)
-  }, [readingExpired, attemptId, loadState])
+    if (listeningOver || readingExpired) loadState()
+  }, [listeningOver, readingExpired, loadState])
 
   useEffect(() => {
     if (status === 'submitted') caches.delete(AUDIO_CACHE)
@@ -200,11 +195,20 @@ export default function ExamView({ attemptId, onExit }) {
       await loadState()
     })
 
-  const submit = () => {
-    if (!window.confirm('¿Enviar la prueba? Después no podrás ver ni cambiar tus respuestas.')) return
+  const startReading = () => {
+    if (!window.confirm(`Al entrar a Reading empiezan a correr tus ${state.reading_minutes} minutos. ¿Comenzar?`)) return
     run(async () => {
-      const { error: submitError } = await supabase.rpc('submit_attempt', { p_attempt_id: attemptId })
-      if (submitError) throw submitError
+      const { error: startError } = await supabase.rpc('start_reading', { p_attempt_id: attemptId })
+      if (startError) throw startError
+      await loadState()
+    })
+  }
+
+  const finishReading = () => {
+    if (!window.confirm('¿Terminar Reading? Después no podrás volver a esta sección ni cambiar sus respuestas.')) return
+    run(async () => {
+      const { error: finishError } = await supabase.rpc('finish_reading', { p_attempt_id: attemptId })
+      if (finishError) throw finishError
       await loadState()
     })
   }
@@ -234,15 +238,42 @@ export default function ExamView({ attemptId, onExit }) {
     )
   }
 
+  if (status === 'pending') {
+    const listeningParts = state.parts.filter((part) => part.section === 'listening').length
+    return (
+      <section>
+        <h2>Elige una sección</h2>
+        <p>Puedes empezar por la que quieras. Al terminarla vuelves aquí para presentar la otra.</p>
+        {busy && <p>Procesando…</p>}
+        {error && <p role="alert">{error}</p>}
+        <div className="section-choice">
+          <SectionCard
+            title="Listening"
+            detail={`${listeningParts} partes con audio. El audio no se puede pausar ni retroceder.`}
+            done={state.listening_done}
+            disabled={busy}
+            onStart={startNextPart}
+          />
+          <SectionCard
+            title="Reading"
+            detail={`Tienes ${state.reading_minutes} minutos desde que entras. Puedes terminar antes.`}
+            done={state.reading_done}
+            disabled={busy}
+            onStart={startReading}
+          />
+        </div>
+      </section>
+    )
+  }
+
   const page = state.pages[pageIndex]
   const pagePart = state.parts.find((part) => part.part === page?.part)
-  const canStartNext = nextPart && (status === 'pending' || (status === 'listening' && !partPlaying))
+  const canStartNext = nextPart && status === 'listening' && !partPlaying
 
   return (
     <section>
       <audio ref={audioRef} onPlaying={() => setAudioPlaying(true)} onPause={handlePause} />
       <div className="exam-bar">
-        {status === 'pending' && <strong>Listening</strong>}
         {status === 'listening' && (
           <strong>
             Listening · Parte {state.current_part} ·{' '}
@@ -265,14 +296,13 @@ export default function ExamView({ attemptId, onExit }) {
           </button>
         )}
         {status === 'reading' && (
-          <button className="danger" disabled={busy} onClick={submit}>
-            Enviar prueba
+          <button className="danger" disabled={busy} onClick={finishReading}>
+            Terminar Reading
           </button>
         )}
       </div>
       {busy && <p>Procesando…</p>}
       {error && <p role="alert">{error}</p>}
-      {status === 'pending' && <p>Cuando estés lista, comienza la parte 1. El audio no se puede pausar ni retroceder.</p>}
       {page && (
         <div className="exam">
           <div>
@@ -296,5 +326,21 @@ export default function ExamView({ attemptId, onExit }) {
         </div>
       )}
     </section>
+  )
+}
+
+function SectionCard({ title, detail, done, disabled, onStart }) {
+  return (
+    <article className="section-card card">
+      <h3>{title}</h3>
+      <p>{detail}</p>
+      {done ? (
+        <span className="badge badge-submitted">✓ Terminada</span>
+      ) : (
+        <button className="primary" disabled={disabled} onClick={onStart}>
+          Comenzar {title}
+        </button>
+      )}
+    </article>
   )
 }

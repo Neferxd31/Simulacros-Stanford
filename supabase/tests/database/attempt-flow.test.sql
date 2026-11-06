@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(30);
+select plan(41);
 
 -- Fixtures (as postgres, bypassing RLS)
 insert into auth.users (id, email) values
@@ -30,7 +30,8 @@ insert into public.sessions (id, exam_id, starts_at, created_by) values
   ('10000000-0000-0000-0000-000000000002', 'e2', now() + interval '1 day', '00000000-0000-0000-0000-00000000000a');
 insert into public.session_students (session_id, student_id) values
   ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001'),
-  ('10000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001');
+  ('10000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000001'),
+  ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002');
 
 select is((select email from public.profiles where id = '00000000-0000-0000-0000-000000000001'), 'student1@test.co',
   'profile keeps the email');
@@ -67,26 +68,30 @@ update public.attempts set current_part_started_at = now() - interval '301 secon
 select set_config('test.attempt_id', (select id::text from public.attempts where student_id = '00000000-0000-0000-0000-000000000001'), true);
 set local role authenticated;
 
+select throws_ok($$select public.start_reading((select id from public.attempts))$$,
+  'Termina primero la sección actual');
 select lives_ok($$select public.start_next_part((select id from public.attempts))$$, 'starts part 2 after part 1 ends');
-select is((select reading_started_at from public.attempts), now() + interval '200 seconds',
-  'reading starts when the last audio ends');
 select throws_ok($$select public.save_answer((select id from public.attempts), 11, 'D')$$,
   'P0001', null, 'part 2 only has A-C');
 select lives_ok($$select public.save_answer((select id from public.attempts), 11, 'C')$$, 'answers part 2');
 select throws_ok($$select public.save_answer((select id from public.attempts), 2, 'B')$$,
   'P0001', null, 'cannot go back to part 1');
-select throws_ok($$select public.submit_attempt((select id from public.attempts))$$,
-  'P0001', null, 'cannot submit during listening');
 
--- Reading
+-- Last audio ends: back to the section choice
 reset role;
-update public.attempts set reading_started_at = now() - interval '1 minute' where student_id = '00000000-0000-0000-0000-000000000001';
+update public.attempts set current_part_started_at = now() - interval '201 seconds' where student_id = '00000000-0000-0000-0000-000000000001';
 set local role authenticated;
 
-select is((select public.attempt_status(attempts) from public.attempts), 'reading', 'reading after last audio');
-select lives_ok($$select public.save_answer((select id from public.attempts), 101, 'B')$$, 'answers reading');
+select is((select public.attempt_status(attempts) from public.attempts), 'pending', 'back to the section choice after the last audio');
+select is(public.attempt_state((select id from public.attempts)) ->> 'listening_done', 'true', 'state marks listening as done');
+select throws_ok($$select public.start_next_part((select id from public.attempts))$$, 'El Listening ya terminó');
 select throws_ok($$select public.save_answer((select id from public.attempts), 11, 'A')$$,
-  'P0001', null, 'listening is closed during reading');
+  'P0001', null, 'listening is closed once done');
+
+-- Reading
+select lives_ok($$select public.start_reading((select id from public.attempts))$$, 'chooses reading');
+select is((select public.attempt_status(attempts) from public.attempts), 'reading', 'reading in progress');
+select lives_ok($$select public.save_answer((select id from public.attempts), 101, 'B')$$, 'answers reading');
 select is((select count(*) from storage.objects where bucket_id = 'exams'), 1::bigint, 'sees only reading pages');
 
 -- Another student cannot touch it
@@ -94,15 +99,31 @@ set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000002", 
 select throws_ok($$select public.save_answer(current_setting('test.attempt_id')::uuid, 101, 'A')$$,
   'P0001', null, 'another student cannot write into the attempt');
 
--- Submit
+-- Finishing the second section submits the test
 set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000001", "role": "authenticated"}';
-select lives_ok($$select public.submit_attempt((select id from public.attempts))$$, 'submits during reading');
+select lives_ok($$select public.finish_reading((select id from public.attempts))$$, 'finishes reading early');
+select is((select public.attempt_status(attempts) from public.attempts), 'submitted', 'both sections done is submitted');
 select throws_ok($$select public.save_answer((select id from public.attempts), 102, 'A')$$,
   'P0001', null, 'no answers after submit');
 select is(public.attempt_state((select id from public.attempts))::jsonb, '{"status": "submitted"}'::jsonb,
   'state hides everything after submit');
 select is((select count(*) from storage.objects where bucket_id = 'exams'), 0::bigint, 'no files after submit');
-select lives_ok($$select public.submit_attempt((select id from public.attempts))$$, 'submit can be called again');
+select throws_ok($$select public.finish_reading((select id from public.attempts))$$, 'El Reading no está en curso');
+
+-- Student2 starts with Reading
+set local request.jwt.claims = '{"sub": "00000000-0000-0000-0000-000000000002", "role": "authenticated"}';
+select lives_ok($$select public.start_attempt('10000000-0000-0000-0000-000000000001')$$, 'student2 starts');
+select lives_ok($$select public.start_reading((select id from public.attempts))$$, 'chooses reading first');
+select throws_ok($$select public.start_next_part((select id from public.attempts))$$, 'Termina primero la sección actual');
+
+reset role;
+update public.attempts set reading_started_at = now() - interval '76 minutes' where student_id = '00000000-0000-0000-0000-000000000002';
+set local role authenticated;
+
+select is((select public.attempt_status(attempts) from public.attempts), 'pending', 'back to the section choice when reading time ends');
+select throws_ok($$select public.start_reading((select id from public.attempts))$$, 'El Reading ya terminó');
+select lives_ok($$select public.start_next_part((select id from public.attempts))$$, 'then starts listening');
+select is((select public.attempt_status(attempts) from public.attempts), 'listening', 'listening after reading');
 
 select * from finish();
 rollback;

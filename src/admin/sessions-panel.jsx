@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase-client.js'
 import { bogotaInputToIso, formatBogota } from '../lib/format-date.js'
 import AnswerSheet from './answer-sheet.jsx'
 
-const STATUS_LABELS = { pending: 'Pendiente', listening: 'Listening', reading: 'Reading', submitted: 'Enviada' }
+const STATUS_LABELS = { pending: 'Eligiendo sección', listening: 'Listening', reading: 'Reading', submitted: 'Enviada' }
 const EMPTY_FORM = { examId: '', startsAt: '', studentIds: [] }
 
 const studentLabel = (profile) => profile.full_name || profile.email

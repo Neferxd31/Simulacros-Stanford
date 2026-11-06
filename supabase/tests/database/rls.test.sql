@@ -55,7 +55,7 @@ select is((select public.attempt_status(a) from public.attempts a where id = '20
 update public.attempts set reading_started_at = now() - interval '76 minutes' where id = '20000000-0000-0000-0000-000000000001';
 select is((select public.attempt_status(a) from public.attempts a where id = '20000000-0000-0000-0000-000000000001'), 'submitted',
   'expired reading counts as submitted');
-update public.attempts set reading_started_at = now() + interval '5 minutes' where id = '20000000-0000-0000-0000-000000000001';
+update public.attempts set reading_started_at = null, current_part_started_at = now() where id = '20000000-0000-0000-0000-000000000001';
 select is((select public.attempt_status(a) from public.attempts a where id = '20000000-0000-0000-0000-000000000001'), 'listening',
   'last audio still playing is listening');
 update public.attempts set current_part = null, current_part_started_at = null, reading_started_at = null
